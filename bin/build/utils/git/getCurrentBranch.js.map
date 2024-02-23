@@ -1,0 +1,1 @@
+{"version":3,"file":"getCurrentBranch.js","sourceRoot":"","sources":["../../../../src/utils/git/getCurrentBranch.ts"],"names":[],"mappings":";;;AAAA,4CAAwC;AAEjC,KAAK,UAAU,gBAAgB;IACpC,MAAM,EAAE,MAAM,EAAE,GAAG,MAAM,IAAA,qBAAS,EAAC,iCAAiC,CAAC,CAAA;IACrE,OAAO,MAAM,CAAC,IAAI,EAAE,CAAA;AACtB,CAAC;AAHD,4CAGC"}
