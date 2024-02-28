@@ -22,6 +22,7 @@ import { createReleaseComment } from '../utils/createReleaseComment'
 import { demandGitHubToken, demandNpmToken } from '../utils/env'
 import { Notes } from './notes'
 import { ReleaseProfile } from '../utils/getConfig'
+import * as fs from 'fs';
 
 interface PublishArgv {
   profile: string
@@ -196,6 +197,7 @@ export class Publish extends Command<PublishArgv> {
       await this.createReleaseTag()
       await this.pushToRemote()
       const releaseNotes = await this.generateReleaseNotes(commits)
+      fs.writeFileSync("release-notes.md", releaseNotes)
       const releaseUrl = await this.createGitHubRelease(releaseNotes)
 
       return {
