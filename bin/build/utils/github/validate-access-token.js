@@ -3,8 +3,9 @@ import { invariant } from "outvariant";
 
 //#region src/utils/github/validate-access-token.ts
 const FINE_GRAINED_TOKEN_PREFIX = "github_pat_";
+const GITHUB_APP_TOKEN_PREFIX = "ghs_";
 function getGitHubTokenType(accessToken) {
-	if (accessToken.startsWith(FINE_GRAINED_TOKEN_PREFIX)) return "fine-grained";
+	if (accessToken.startsWith(FINE_GRAINED_TOKEN_PREFIX) || accessToken.startsWith(GITHUB_APP_TOKEN_PREFIX)) return "fine-grained";
 	return "classic";
 }
 const requiredGitHubTokenScopes = [

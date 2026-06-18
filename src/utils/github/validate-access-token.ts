@@ -6,9 +6,13 @@ export type GitHubTokenType = 'classic' | 'fine-grained'
 export type GitHubRepo = Pick<GitInfo, 'owner' | 'name'>
 
 const FINE_GRAINED_TOKEN_PREFIX = 'github_pat_'
+const GITHUB_APP_TOKEN_PREFIX = 'ghs_'
 
 export function getGitHubTokenType(accessToken: string): GitHubTokenType {
-  if (accessToken.startsWith(FINE_GRAINED_TOKEN_PREFIX)) {
+  if (
+    accessToken.startsWith(FINE_GRAINED_TOKEN_PREFIX) ||
+    accessToken.startsWith(GITHUB_APP_TOKEN_PREFIX)
+  ) {
     return 'fine-grained'
   }
 
