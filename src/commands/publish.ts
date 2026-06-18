@@ -1,5 +1,6 @@
 import { until } from 'until-async'
 import { invariant, format } from 'outvariant'
+import * as fs from 'fs'
 import { type BuilderCallback } from 'yargs'
 import { Command } from '#/src/Command.js'
 import {
@@ -219,6 +220,7 @@ export class Publish extends Command<PublishArgv> {
       await this.createReleaseTag()
       await this.pushToRemote()
       const releaseNotes = await this.generateReleaseNotes(commits)
+      fs.writeFileSync("release-notes.md", releaseNotes)
       const releaseUrl = await this.createGitHubRelease(releaseNotes)
 
       return {
