@@ -45,3 +45,29 @@ it('parses commits with the "!" type appendix', async () => {
     },
   ])
 })
+
+it('parses commits with odd scope', async () => {
+  expect(
+    await parseCommits([
+      mockCommit({
+        subject: 'feat(cplusplus): add clang-tidy. lock setuptools at 81.0.0 [] (#885)',
+      }),
+    ]),
+  ).toEqual([
+    {
+      hash: '',
+      type: 'feat',
+      typeAppendix: undefined,
+      header: 'feat(cplusplus): add clang-tidy. lock setuptools at 81.0.0 [] (#885)',
+      subject: 'add clang-tidy. lock setuptools at 81.0.0 [] (#885)',
+      body: null,
+      footer: null,
+      merge: null,
+      revert: null,
+      scope: 'cplusplus',
+      notes: [],
+      mentions: [],
+      references: [],
+    }
+  ])
+})
