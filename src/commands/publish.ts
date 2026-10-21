@@ -218,7 +218,7 @@ export class Publish extends Command<PublishArgv> {
     const [resultError, resultData] = await until(async () => {
       await this.createReleaseCommit()
       await this.createReleaseTag()
-      await this.pushToRemote()
+      await this.pushToRemote(branchName)
       const releaseNotes = await this.generateReleaseNotes(commits)
       fs.writeFileSync("release-notes.md", releaseNotes)
       const releaseUrl = await this.createGitHubRelease(releaseNotes)
@@ -380,11 +380,9 @@ export class Publish extends Command<PublishArgv> {
       return
     }
 
-    const [tagError, tagData] = await until(async () => {
-      const tag = await createTag(nextTag)
-      await execAsync(`git push origin ${tag}`)
-      return tag
-    })
+    // The tag is pushed together with the release commit in "pushToRemote",
+    // so a rejected branch push never publishes the tag.
+    const [tagError, tagData] = await until(() => createTag(nextTag))
 
     invariant(tagError == null, 'Failed to tag the release!\n', tagError)
 
@@ -393,7 +391,6 @@ export class Publish extends Command<PublishArgv> {
       this.log.info(format('reverting the release tag "%s"...', tagToRevert))
 
       await execAsync(`git tag -d ${tagToRevert}`)
-      await execAsync(`git push --delete origin ${tagToRevert}`)
     })
 
     this.log.info(format('created release tag "%s"!', tagData))
@@ -418,19 +415,28 @@ export class Publish extends Command<PublishArgv> {
   /**
    * Push the release commit and tag to the remote.
    */
-  private async pushToRemote(): Promise<void> {
+  private async pushToRemote(branchName: string): Promise<void> {
     if (this.argv.dryRun) {
       this.log.warn('skip pushing release to Git in dry-run mode')
       return
     }
 
-    const [pushError] = await until(() => push())
+    const releaseTag = this.context.nextRelease.tag
+    const [pushError] = await until(() => push(branchName, releaseTag))
 
     invariant(
       pushError == null,
       'Failed to push changes to origin!\n',
       pushError,
     )
+
+    this.revertQueue.push(async () => {
+      this.log.info(
+        format('deleting the release tag "%s" from origin...', releaseTag),
+      )
+
+      await execAsync(`git push --delete origin ${releaseTag}`)
+    })
 
     this.log.info(
       format('pushed changes to "%s" (origin)!', this.context.repo.remote),
