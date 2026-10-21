@@ -581,6 +581,71 @@ it('only pushes the newly created release tag to the remote', async () => {
 
   expect(log.info).toHaveBeenCalledWith('release type "minor": 1.0.0 -> 1.1.0')
   expect(log.info).toHaveBeenCalledWith('release "v1.1.0" completed!')
+
+  const { stdout: releaseCommitHash } = await execAsync('git rev-parse HEAD')
+  const { stdout: remoteRefs } = await execAsync('git ls-remote origin')
+  expect(remoteRefs).toContain(`${releaseCommitHash.trim()}\trefs/heads/main`)
+  expect(remoteRefs).toContain(`${releaseCommitHash.trim()}\trefs/tags/v1.1.0`)
+})
+
+it('does not push the release tag if the remote rejects the release commit', async () => {
+  const repo = await createRepository('push-rejected')
+
+  await repo.fs.create({
+    'package.json': JSON.stringify({ name: 'push-rejected', version: '0.0.0' }),
+  })
+  await execAsync(`git add . && git commit -m 'feat: new feature'`)
+  await execAsync('git push')
+
+  // Reject branch updates per ref, the way a server-side rule such as
+  // a GitHub ruleset does, and log every ref the remote accepts.
+  const remoteHooksPath = '.git-provider/octocat/push-rejected.git/hooks'
+  await repo.fs.create({
+    [`${remoteHooksPath}/update`]: [
+      '#!/bin/sh',
+      'case "$1" in refs/heads/*) exit 1 ;; esac',
+    ].join('\n'),
+    [`${remoteHooksPath}/post-receive`]: [
+      '#!/bin/sh',
+      'cat >> accepted-refs.log',
+    ].join('\n'),
+  })
+  await execAsync(
+    `chmod +x ${remoteHooksPath}/update ${remoteHooksPath}/post-receive`,
+  )
+
+  const publish = new Publish(
+    {
+      profiles: [
+        {
+          name: 'latest',
+          use: 'exit 0',
+        },
+      ],
+    },
+    {
+      _: [],
+      profile: 'latest',
+    },
+  )
+  await publish.run()
+
+  expect(log.error).toHaveBeenCalledWith(
+    expect.stringContaining('Failed to push changes to origin!'),
+  )
+  expect(process.exit).toHaveBeenCalledWith(1)
+
+  // The tag must never have reached the remote, not even briefly.
+  const acceptedRefsLogPath = repo.fs.resolve(
+    '.git-provider/octocat/push-rejected.git/accepted-refs.log',
+  )
+  const acceptedRefs = fs.existsSync(acceptedRefsLogPath)
+    ? fs.readFileSync(acceptedRefsLogPath, 'utf8')
+    : ''
+  expect(acceptedRefs).not.toContain('refs/tags/v0.1.0')
+
+  const { stdout: remoteTags } = await execAsync('git ls-remote --tags origin')
+  expect(remoteTags).toBe('')
 })
 
 it('treats breaking changes as minor versions when "prerelease" is set to true', async () => {
