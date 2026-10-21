@@ -1,4 +1,7 @@
 node_modules
 bin/**
 !bin/cli.js
+!bin/build
+!bin/build/**
 .tmp
+release-notes.md
