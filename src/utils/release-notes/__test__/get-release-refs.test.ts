@@ -91,6 +91,45 @@ This pull request references issues in its description.
   )
 })
 
+it('ignores body references other than closing keywords', async () => {
+  await createRepository('body-references')
+
+  const issues: IssueMap = {
+    2: {
+      html_url: '/issues/2',
+      pull_request: null,
+      body: '',
+    },
+    10: {
+      html_url: '/issues/10',
+      pull_request: {},
+      body: '',
+    },
+  }
+
+  api.use(
+    http.get(
+      'https://api.github.com/repos/:owner/:repo/issues/:id',
+      gitHubIssueResolver(issues),
+    ),
+  )
+
+  const commits = await parseCommits([
+    mockCommit({
+      subject: 'fix(ui): some stuff (#10)',
+      body: [
+        'style A fill:#dcfce7,stroke:#166534',
+        'Follows octocat/other#7 and the #1070 layout.',
+        '',
+        'Closes #2',
+      ].join('\n'),
+    }),
+  ])
+  const refs = await getReleaseRefs(commits)
+
+  expect(refs).toEqual(new Set(['10', '2']))
+})
+
 it('handles references without body', async () => {
   await createRepository('ref-without-body')
 

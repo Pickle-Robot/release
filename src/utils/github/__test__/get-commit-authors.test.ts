@@ -130,6 +130,57 @@ it('returns github handles for all contributors to the release commit', async ()
   expect(authors).toEqual(new Set(['octocat', 'john.doe', 'kate']))
 })
 
+it('looks up only the pull request in the commit subject', async () => {
+  const requestedPullRequests: Array<number> = []
+  api.use(
+    graphql.query<Record<string, unknown>, { pullRequestId: number }>(
+      'GetCommitAuthors',
+      ({ variables }) => {
+        requestedPullRequests.push(variables.pullRequestId)
+        return HttpResponse.json({
+          data: {
+            repository: {
+              pullRequest: {
+                author: { login: 'octocat' },
+                commits: { nodes: [] },
+              },
+            },
+          },
+        })
+      },
+    ),
+  )
+
+  const commits = await parseCommits([
+    mockCommit({
+      subject: 'fix: does things (#1)',
+      body: [
+        'style A fill:#dcfce7,stroke:#166534',
+        'Follows octocat/other#7 and the #1070 layout.',
+      ].join('\n'),
+    }),
+  ])
+
+  const authors = await getCommitAuthors(commits[0])
+
+  expect(requestedPullRequests).toEqual([1])
+  expect(authors).toEqual(new Set(['octocat']))
+})
+
+it('returns an empty set for a commit without a pull request in its subject', async () => {
+  const commits = await parseCommits([
+    mockCommit({
+      subject: 'fix: branch commit',
+      body: 'Related to #3 and octocat/other#4.',
+    }),
+  ])
+
+  const authors = await getCommitAuthors(commits[0])
+
+  expect(authors).toEqual(new Set())
+  expect(log.error).not.toHaveBeenCalled()
+})
+
 it('returns an empty set for a commit without references', async () => {
   const commits = await parseCommits([
     mockCommit({

@@ -1,5 +1,6 @@
 import { format } from 'outvariant'
 import { getInfo } from '#/src/utils/git/get-info.js'
+import { getPullRequestNumber } from '#/src/utils/git/get-pull-request-number.js'
 import type { ParsedCommitWithHash } from '#/src/utils/git/parse-commits.js'
 import { log } from '#/src/logger.js'
 
@@ -26,18 +27,18 @@ export interface GetCommitAuthorsQuery {
 /**
  * Get a list of GitHub usernames who have contributed
  * to the given release commit. This analyzes all the commit
- * authors in the pull request referenced by the given commit.
+ * authors in the pull request named in the commit's subject.
  */
 export async function getCommitAuthors(
   commit: ParsedCommitWithHash,
 ): Promise<Set<string>> {
-  // Extract all GitHub issue references from this commit.
-  const issueRefs: Set<string> = new Set()
-  for (const ref of commit.references) {
-    if (ref.issue) {
-      issueRefs.add(ref.issue)
-    }
-  }
+  // Only the subject's pull request: a squash commit's body is the pull
+  // request description, whose "#..." references may point at other
+  // repositories or be text such as a "#166534" color.
+  const pullRequestNumber = getPullRequestNumber(commit)
+  const issueRefs: Set<string> = new Set(
+    pullRequestNumber ? [pullRequestNumber] : [],
+  )
 
   if (issueRefs.size === 0) {
     return new Set()
@@ -142,7 +143,7 @@ export async function getCommitAuthors(
       authorLoginPromise.catch((error: Error) => {
         log.error(
           format(
-            'Failed to extract the authors for the issue #%d:',
+            'Failed to extract the authors for the issue #%s:',
             issueId,
             error.message,
           ),

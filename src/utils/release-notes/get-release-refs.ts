@@ -1,5 +1,6 @@
 import createIssueParser from 'issue-parser'
 import { getInfo, type GitInfo } from '#/src/utils/git/get-info.js'
+import { getPullRequestNumber } from '#/src/utils/git/get-pull-request-number.js'
 import type { ParsedCommitWithHash } from '#/src/utils/git/parse-commits.js'
 
 const parser = createIssueParser('github')
@@ -24,16 +25,20 @@ export async function getReleaseRefs(
   const issueIds = new Set<string>()
 
   for (const commit of commits) {
-    // Extract issue ids from the commit messages.
-    for (const ref of commit.references) {
-      if (ref.issue) {
-        issueIds.add(ref.issue)
-      }
+    // Only the subject's pull request: the parsed references also include
+    // anything in the body that looks like "#123".
+    const pullRequestNumber = getPullRequestNumber(commit)
+    if (pullRequestNumber) {
+      issueIds.add(pullRequestNumber)
     }
 
-    // Extract issue ids from the commit bodies.
-    if (commit.body) {
-      const bodyIssueIds = extractIssueIds(commit.body, repo)
+    // Extract closed issue ids from the commit bodies. The parser puts a
+    // trailing "Closes #1" paragraph in the footer, not the body.
+    const messageAfterSubject = [commit.body, commit.footer]
+      .filter(Boolean)
+      .join('\n\n')
+    if (messageAfterSubject) {
+      const bodyIssueIds = extractIssueIds(messageAfterSubject, repo)
       bodyIssueIds.forEach((id) => issueIds.add(id))
     }
   }
